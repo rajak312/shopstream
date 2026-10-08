@@ -428,7 +428,7 @@ The API runs in Singapore to sit next to Neon and within a short hop of the Mumb
 
 **Vercel project:** Root Directory `apps/web`, framework Next.js (install/build commands come from
 `vercel.json` and build the workspace from the repo root), environment variables
-`NEXT_PUBLIC_GATEWAY_URL=https://shopstream-api.onrender.com/graphql` and
+`NEXT_PUBLIC_GATEWAY_URL=https://shopstream-api-vcos.onrender.com/graphql` and
 `NEXT_PUBLIC_SITE_URL=https://shopstream-lalit.vercel.app`.
 
 ## Repository layout

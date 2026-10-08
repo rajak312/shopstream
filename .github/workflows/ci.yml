@@ -38,7 +38,7 @@ jobs:
       - run: npm run test:unit
       - run: npm run build -w @shopstream/web
         env:
-          NEXT_PUBLIC_GATEWAY_URL: https://shopstream-api.onrender.com/graphql
+          NEXT_PUBLIC_GATEWAY_URL: https://shopstream-api-vcos.onrender.com/graphql
 
   e2e:
     name: E2E (Testcontainers — MongoDB, PostgreSQL, NATS)
