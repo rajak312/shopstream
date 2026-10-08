@@ -1,0 +1,69 @@
+{
+  "name": "shopstream",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Event-driven e-commerce microservices: NestJS, Apollo Federation v2, MongoDB, PostgreSQL (Prisma 7), NATS JetStream, OpenTelemetry, Next.js 16.",
+  "author": "Lalit Rajak (https://github.com/rajak312)",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "packages/contracts",
+    "packages/platform",
+    "services/catalog",
+    "services/orders",
+    "services/payments",
+    "services/notifications",
+    "services/gateway",
+    "deploy/allinone",
+    "tests/e2e",
+    "apps/web"
+  ],
+  "scripts": {
+    "prisma:generate": "npm run prisma:generate -w @shopstream/orders",
+    "build": "npm run prisma:generate && tsc -b tsconfig.build.json && npm run build -w @shopstream/web",
+    "build:services": "npm run prisma:generate && tsc -b tsconfig.build.json",
+    "typecheck": "npm run prisma:generate && tsc -b tsconfig.build.json && npm run typecheck -w @shopstream/web",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --project unit",
+    "test:unit": "vitest run --project unit",
+    "test:e2e": "vitest run --project e2e",
+    "test:all": "vitest run",
+    "dev:infra": "docker compose up -d mongo postgres nats jaeger",
+    "smoke": "node scripts/smoke.mjs",
+    "schema:supergraph": "node scripts/print-supergraph.mjs",
+    "images:generate": "node scripts/generate-product-art.mjs",
+    "clean": "tsc -b tsconfig.build.json --clean"
+  },
+  "allowScripts": {
+    "prisma": true,
+    "@prisma/engines": true,
+    "esbuild": true,
+    "sharp": true,
+    "unrs-resolver": true,
+    "@apollo/protobufjs": false,
+    "ssh2": false,
+    "cpu-features": false
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@next/eslint-plugin-next": "16.4.0",
+    "@types/node": "24.19.1",
+    "eslint": "9.39.5",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "lucide-static": "1.52.0",
+    "prettier": "3.9.9",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.1",
+    "vitest": "5.0.3"
+  },
+  "overrides": {
+    "@apollo/server": "5.5.1"
+  }
+}

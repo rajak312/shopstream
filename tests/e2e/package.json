@@ -1,0 +1,15 @@
+{
+  "name": "@shopstream/e2e",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "devDependencies": {
+    "@nats-io/jetstream": "3.4.0",
+    "@nats-io/transport-node": "3.4.0",
+    "@shopstream/allinone": "1.0.0",
+    "@shopstream/contracts": "1.0.0",
+    "@testcontainers/mongodb": "12.2.0",
+    "@testcontainers/postgresql": "12.2.0",
+    "testcontainers": "12.2.0"
+  }
+}

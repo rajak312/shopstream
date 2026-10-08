@@ -1,0 +1,202 @@
+# ShopStream local stack: infrastructure + every service + web + Jaeger.
+#   docker compose up --build        -> http://localhost:3700 (web), http://localhost:4700/graphql (gateway)
+#   docker compose up -d mongo postgres nats jaeger   -> infra only, for `npm run dev`
+name: shopstream
+
+x-service-env: &service-env
+  NODE_ENV: production
+  LOG_LEVEL: info
+  NATS_URL: nats://nats:4222
+  JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-please}
+  CORS_ORIGINS: http://localhost:3700
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+  MONGODB_URI: mongodb://mongo:27017/?replicaSet=rs0
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  depends_on:
+    mongo: { condition: service_healthy }
+    postgres: { condition: service_healthy }
+    nats: { condition: service_healthy }
+  deploy:
+    resources:
+      limits: { memory: 256m }
+
+services:
+  mongo:
+    # MongoDB 8.x refuses to start on Linux >= 6.19 (SERVER-121912, TCMalloc + rseq), so 7.0 is the
+    # default that runs everywhere. Use MONGO_IMAGE=mongo:8 on older kernels; Atlas (prod) runs 8.x.
+    image: ${MONGO_IMAGE:-mongo:7.0}
+    command: [--replSet, rs0, --bind_ip_all, --quiet]
+    ports: ['27117:27017']
+    volumes: [mongo-data:/data/db]
+    healthcheck:
+      # Initiates the single-node replica set on first boot (transactions need a replica set).
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }).ok }"
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 5s
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: shopstream
+      POSTGRES_PASSWORD: shopstream
+      POSTGRES_DB: shopstream_orders
+    ports: ['4710:5432']
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U shopstream -d shopstream_orders]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  nats:
+    image: nats:2.12-alpine
+    command: [-js, -sd, /data, -m, '8222']
+    ports: ['4722:4222', '4782:8222']
+    volumes: [nats-data:/data]
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://localhost:8222/healthz?js-enabled-only=true']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  jaeger:
+    image: jaegertracing/jaeger:latest
+    ports: ['4716:16686', '4718:4318']
+    environment:
+      MEMORY_MAX_TRACES: '20000'
+
+  catalog:
+    <<: *service-defaults
+    build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: catalog } }
+    image: ghcr.io/rajak312/shopstream-catalog:${TAG:-local}
+    environment:
+      <<: *service-env
+      PORT: '4001'
+    ports: ['4701:4001']
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:4001/ready']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  orders:
+    <<: *service-defaults
+    build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: orders } }
+    image: ghcr.io/rajak312/shopstream-orders:${TAG:-local}
+    environment:
+      <<: *service-env
+      PORT: '4002'
+      DATABASE_URL: postgresql://shopstream:shopstream@postgres:5432/shopstream_orders
+    depends_on:
+      orders-migrate: { condition: service_completed_successfully }
+      nats: { condition: service_healthy }
+    ports: ['4702:4002']
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:4002/ready']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  payments:
+    <<: *service-defaults
+    build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: payments } }
+    image: ghcr.io/rajak312/shopstream-payments:${TAG:-local}
+    environment:
+      <<: *service-env
+      PORT: '4003'
+    ports: ['4703:4003']
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:4003/ready']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  notifications:
+    <<: *service-defaults
+    build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: notifications } }
+    image: ghcr.io/rajak312/shopstream-notifications:${TAG:-local}
+    environment:
+      <<: *service-env
+      PORT: '4004'
+    ports: ['4704:4004']
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:4004/ready']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  gateway:
+    <<: *service-defaults
+    build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: gateway } }
+    image: ghcr.io/rajak312/shopstream-gateway:${TAG:-local}
+    environment:
+      <<: *service-env
+      PORT: '4000'
+      CATALOG_URL: http://catalog:4001/graphql
+      ORDERS_URL: http://orders:4002/graphql
+      PAYMENTS_URL: http://payments:4003/graphql
+      NOTIFICATIONS_URL: http://notifications:4004/graphql
+    depends_on:
+      mongo: { condition: service_healthy }
+      catalog: { condition: service_healthy }
+      orders: { condition: service_healthy }
+      payments: { condition: service_healthy }
+      notifications: { condition: service_healthy }
+    ports: ['4700:4000']
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:4000/ready']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_GATEWAY_URL: http://localhost:4700/graphql
+        NEXT_PUBLIC_SITE_URL: http://localhost:3700
+    image: ghcr.io/rajak312/shopstream-web:${TAG:-local}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    ports: ['3700:3000']
+    depends_on:
+      gateway: { condition: service_healthy }
+
+  # One-shot schema migration (mirrors the Argo CD PreSync hook in shopstream-gitops).
+  orders-migrate:
+    image: ghcr.io/rajak312/shopstream-orders:${TAG:-local}
+    build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: orders } }
+    working_dir: /app/services/orders
+    command: [node, ../../node_modules/prisma/build/index.js, migrate, deploy]
+    environment:
+      DATABASE_URL: postgresql://shopstream:shopstream@postgres:5432/shopstream_orders
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: 'no'
+
+volumes:
+  mongo-data:
+  postgres-data:
+  nats-data:

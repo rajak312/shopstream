@@ -1,0 +1,13 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/contracts" },
+    { "path": "packages/platform" },
+    { "path": "services/catalog" },
+    { "path": "services/orders" },
+    { "path": "services/payments" },
+    { "path": "services/notifications" },
+    { "path": "services/gateway" },
+    { "path": "deploy/allinone" }
+  ]
+}

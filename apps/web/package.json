@@ -1,0 +1,27 @@
+{
+  "name": "@shopstream/web",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev --port 3700",
+    "build": "next build",
+    "start": "next start --port 3700",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@shopstream/contracts": "1.0.0",
+    "@tanstack/react-query": "5.104.1",
+    "clsx": "2.1.1",
+    "lucide-react": "1.52.0",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "tailwindcss": "4.3.3"
+  }
+}

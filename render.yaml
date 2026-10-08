@@ -1,0 +1,37 @@
+# Render Blueprint for the ShopStream live demo API.
+# One free web service runs the gateway, all four subgraphs and an embedded
+# NATS JetStream (deploy/render/Dockerfile). Data lives in managed free tiers:
+#   - PostgreSQL: Neon (AWS ap-southeast-1, Singapore)
+#   - MongoDB:    Atlas M0 (AWS ap-south-1, Mumbai)
+# so the service runs in Render's Singapore region to stay close to both.
+services:
+  - type: web
+    name: shopstream-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./deploy/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      # Neon pooled connection string (…-pooler…/shopstream?sslmode=require) used by the app
+      - key: DATABASE_URL
+        sync: false
+      # Neon direct (non-pooled) connection string used by `prisma migrate deploy`
+      - key: DIRECT_URL
+        sync: false
+      # Atlas SRV string, e.g. mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
+      - key: MONGODB_URI
+        sync: false
+      # long random string (e.g. `openssl rand -base64 48`)
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://shopstream-lalit.vercel.app
+      - key: DEMO_USER_PASSWORD
+        value: demo-password

@@ -1,0 +1,11 @@
+node_modules
+dist
+.next
+coverage
+**/generated/**
+package-lock.json
+docs/screenshots
+**/migrations/**/*.sql
+apps/web/public/products
+*.svg
+docs/supergraph.graphql

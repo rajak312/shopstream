@@ -1,0 +1,104 @@
+name: Release images
+
+# On every push to main: build multi-arch images, push them to GHCR tagged with
+# the commit SHA and `latest`, then (optionally) bump the image tag in the GitOps
+# repo so Argo CD rolls the dev environment forward.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: rajak312
+
+jobs:
+  images:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: gateway, file: docker/service.Dockerfile, service: gateway }
+          - { name: catalog, file: docker/service.Dockerfile, service: catalog }
+          - { name: orders, file: docker/service.Dockerfile, service: orders }
+          - { name: payments, file: docker/service.Dockerfile, service: payments }
+          - { name: notifications, file: docker/service.Dockerfile, service: notifications }
+          - { name: web, file: apps/web/Dockerfile, service: '' }
+          - { name: allinone, file: deploy/render/Dockerfile, service: '' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/shopstream-${{ matrix.name }}
+          tags: |
+            type=sha,format=long,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=shopstream-${{ matrix.name }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # The web image talks to the gateway through the same ingress host (/graphql, /events).
+          build-args: |
+            SERVICE=${{ matrix.service }}
+            APP_VERSION=${{ github.sha }}
+            NEXT_PUBLIC_GATEWAY_URL=/graphql
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          provenance: false
+
+  bump-gitops:
+    name: Bump image tag in shopstream-gitops (dev)
+    needs: images
+    runs-on: ubuntu-latest
+    env:
+      # Optional: a fine-grained PAT with contents:write on rajak312/shopstream-gitops.
+      # Without it this job is skipped and CI stays green.
+      GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+    steps:
+      - name: Skip when GITOPS_TOKEN is not configured
+        if: env.GITOPS_TOKEN == ''
+        run: echo "::notice::GITOPS_TOKEN secret not set — skipping GitOps image bump."
+      - uses: actions/checkout@v4
+        if: env.GITOPS_TOKEN != ''
+        with:
+          repository: rajak312/shopstream-gitops
+          token: ${{ env.GITOPS_TOKEN }}
+          path: gitops
+      - name: Update dev image tag
+        if: env.GITOPS_TOKEN != ''
+        working-directory: gitops
+        run: |
+          set -euo pipefail
+          yq -i '.global.image.tag = "${{ github.sha }}"' environments/dev/values.yaml
+          git config user.name "shopstream-release-bot"
+          git config user.email "shopstream-release-bot@users.noreply.github.com"
+          if git diff --quiet; then echo "Already up to date"; exit 0; fi
+          git commit -am "chore(dev): deploy shopstream ${GITHUB_SHA::7}" \
+            -m "Source: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+          git push origin HEAD:main

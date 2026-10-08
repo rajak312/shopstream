@@ -1,0 +1,15 @@
+{
+  "name": "@shopstream/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Typed, versioned event contracts (zod), subjects, money math and test-card catalog shared by every ShopStream service.",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
+  }
+}

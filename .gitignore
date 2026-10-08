@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.next/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+services/orders/src/generated/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.vercel
+.turbo

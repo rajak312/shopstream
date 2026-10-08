@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint · format · typecheck · unit tests · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # Prisma 7 client is generated into services/orders/src/generated (git-ignored),
+      # so generate it before anything type-checks.
+      - run: npm run prisma:generate
+      - run: npm run build:services
+      # Fails if the subgraphs no longer compose into a valid supergraph.
+      - run: npm run schema:supergraph && git diff --exit-code docs/supergraph.graphql
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npx tsc -p tsconfig.test.json
+      - run: npm run test:unit
+      - run: npm run build -w @shopstream/web
+        env:
+          NEXT_PUBLIC_GATEWAY_URL: https://shopstream-api.onrender.com/graphql
+
+  e2e:
+    name: E2E (Testcontainers — MongoDB, PostgreSQL, NATS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build:services
+      - run: npm run test:e2e
+
+  docker:
+    name: Docker images build (no push)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: orders, file: docker/service.Dockerfile, service: orders }
+          - { name: gateway, file: docker/service.Dockerfile, service: gateway }
+          - { name: allinone, file: deploy/render/Dockerfile, service: '' }
+          - { name: web, file: apps/web/Dockerfile, service: '' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          build-args: SERVICE=${{ matrix.service }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

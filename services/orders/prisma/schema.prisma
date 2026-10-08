@@ -1,0 +1,170 @@
+// Orders service data model (PostgreSQL). Prisma 7: Rust-free client via the
+// `prisma-client` generator + the `pg` driver adapter; datasource URL lives in prisma.config.ts.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  runtime             = "nodejs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum InventoryStatus {
+  PENDING
+  RESERVED
+  REJECTED
+  RELEASED
+  COMMITTED
+}
+
+/// Local read model of catalog products, kept in sync by `catalog.product.upserted`
+/// events (event-carried state transfer). Checkout never calls the catalog synchronously.
+model ProductSnapshot {
+  id         String   @id
+  sku        String
+  slug       String
+  name       String
+  priceCents Int      @map("price_cents")
+  currency   String
+  imageUrl   String   @map("image_url")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("product_snapshots")
+}
+
+model Cart {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @unique @map("user_id")
+  items     CartItem[]
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@map("carts")
+}
+
+model CartItem {
+  cartId    String   @map("cart_id") @db.Uuid
+  productId String   @map("product_id")
+  quantity  Int
+  addedAt   DateTime @default(now()) @map("added_at")
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@id([cartId, productId])
+  @@map("cart_items")
+}
+
+model Order {
+  id                 String              @id @default(uuid()) @db.Uuid
+  /// Human-friendly number backed by a Postgres sequence, e.g. SS-100042.
+  number             String              @unique @default(dbgenerated("('SS-'::text || nextval('order_number_seq'::regclass))"))
+  userId             String              @map("user_id")
+  status             OrderStatus         @default(PENDING)
+  paymentStatus      PaymentStatus       @default(PENDING) @map("payment_status")
+  inventoryStatus    InventoryStatus     @default(PENDING) @map("inventory_status")
+  subtotalCents      Int                 @map("subtotal_cents")
+  shippingCents      Int                 @map("shipping_cents")
+  taxCents           Int                 @map("tax_cents")
+  totalCents         Int                 @map("total_cents")
+  currency           String              @default("USD")
+  cardBrand          String              @map("card_brand")
+  cardLast4          String              @map("card_last4")
+  shippingAddress    Json                @map("shipping_address")
+  cancellationReason String?             @map("cancellation_reason")
+  /// Client-supplied key making `checkout` safe to retry (Stripe-style).
+  idempotencyKey     String              @map("idempotency_key")
+  /// Optimistic concurrency token: saga events for one order may arrive concurrently.
+  version            Int                 @default(0)
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  confirmedAt        DateTime?           @map("confirmed_at")
+  shippedAt          DateTime?           @map("shipped_at")
+  deliveredAt        DateTime?           @map("delivered_at")
+  items              OrderItem[]
+  history            OrderStatusChange[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, updatedAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String @id @default(uuid()) @db.Uuid
+  orderId        String @map("order_id") @db.Uuid
+  productId      String @map("product_id")
+  sku            String
+  name           String
+  imageUrl       String @map("image_url")
+  unitPriceCents Int    @map("unit_price_cents")
+  quantity       Int
+  lineTotalCents Int    @map("line_total_cents")
+  order          Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model OrderStatusChange {
+  id      String       @id @default(uuid()) @db.Uuid
+  orderId String       @map("order_id") @db.Uuid
+  from    OrderStatus?
+  to      OrderStatus
+  reason  String?
+  eventId String?      @map("event_id")
+  at      DateTime     @default(now())
+  order   Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, at])
+  @@map("order_status_changes")
+}
+
+/// Transactional outbox: written in the same transaction as the order change.
+model OutboxEvent {
+  /// = event id (also the JetStream Nats-Msg-Id used for broker-side de-duplication)
+  id          String    @id @db.Uuid
+  seq         BigInt    @default(autoincrement())
+  aggregateId String    @map("aggregate_id")
+  type        String
+  payload     Json
+  headers     Json      @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+  lockedUntil DateTime? @map("locked_until")
+  lockedBy    String?   @map("locked_by")
+
+  @@index([publishedAt, seq])
+  @@map("outbox_events")
+}
+
+/// Idempotent-consumer markers, inserted in the same transaction as the handler's effects.
+model ProcessedEvent {
+  consumer    String
+  eventId     String   @map("event_id")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@id([consumer, eventId])
+  @@map("processed_events")
+}
