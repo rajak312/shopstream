@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Event-driven e-commerce microservices: NestJS, Apollo Federation v2, MongoDB, PostgreSQL (Prisma 7), NATS JetStream, OpenTelemetry, Next.js 16.",
-  "author": "Lalit Rajak (https://github.com/rajak312)",
+  "author": "Lalit Rajak (https://github.com/lalitkumarrajak)",
   "license": "MIT",
   "type": "commonjs",
   "engines": {

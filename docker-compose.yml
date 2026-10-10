@@ -81,7 +81,7 @@ services:
   catalog:
     <<: *service-defaults
     build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: catalog } }
-    image: ghcr.io/rajak312/shopstream-catalog:${TAG:-local}
+    image: ghcr.io/lalitkumarrajak/shopstream-catalog:${TAG:-local}
     environment:
       <<: *service-env
       PORT: '4001'
@@ -96,7 +96,7 @@ services:
   orders:
     <<: *service-defaults
     build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: orders } }
-    image: ghcr.io/rajak312/shopstream-orders:${TAG:-local}
+    image: ghcr.io/lalitkumarrajak/shopstream-orders:${TAG:-local}
     environment:
       <<: *service-env
       PORT: '4002'
@@ -115,7 +115,7 @@ services:
   payments:
     <<: *service-defaults
     build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: payments } }
-    image: ghcr.io/rajak312/shopstream-payments:${TAG:-local}
+    image: ghcr.io/lalitkumarrajak/shopstream-payments:${TAG:-local}
     environment:
       <<: *service-env
       PORT: '4003'
@@ -130,7 +130,7 @@ services:
   notifications:
     <<: *service-defaults
     build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: notifications } }
-    image: ghcr.io/rajak312/shopstream-notifications:${TAG:-local}
+    image: ghcr.io/lalitkumarrajak/shopstream-notifications:${TAG:-local}
     environment:
       <<: *service-env
       PORT: '4004'
@@ -145,7 +145,7 @@ services:
   gateway:
     <<: *service-defaults
     build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: gateway } }
-    image: ghcr.io/rajak312/shopstream-gateway:${TAG:-local}
+    image: ghcr.io/lalitkumarrajak/shopstream-gateway:${TAG:-local}
     environment:
       <<: *service-env
       PORT: '4000'
@@ -174,7 +174,7 @@ services:
       args:
         NEXT_PUBLIC_GATEWAY_URL: http://localhost:4700/graphql
         NEXT_PUBLIC_SITE_URL: http://localhost:3700
-    image: ghcr.io/rajak312/shopstream-web:${TAG:-local}
+    image: ghcr.io/lalitkumarrajak/shopstream-web:${TAG:-local}
     restart: unless-stopped
     read_only: true
     tmpfs: [/tmp]
@@ -186,7 +186,7 @@ services:
 
   # One-shot schema migration (mirrors the Argo CD PreSync hook in shopstream-gitops).
   orders-migrate:
-    image: ghcr.io/rajak312/shopstream-orders:${TAG:-local}
+    image: ghcr.io/lalitkumarrajak/shopstream-orders:${TAG:-local}
     build: { context: ., dockerfile: docker/service.Dockerfile, args: { SERVICE: orders } }
     working_dir: /app/services/orders
     command: [node, ../../node_modules/prisma/build/index.js, migrate, deploy]

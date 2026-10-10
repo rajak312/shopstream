@@ -43,7 +43,7 @@ RUN npm ci --omit=dev --no-audit --no-fund --workspace @shopstream/allinone && s
 
 FROM ${NODE_IMAGE} AS runtime
 ARG APP_VERSION=dev
-LABEL org.opencontainers.image.source="https://github.com/rajak312/shopstream" \
+LABEL org.opencontainers.image.source="https://github.com/lalitkumarrajak/shopstream" \
       org.opencontainers.image.description="ShopStream all-in-one demo (gateway + subgraphs + embedded NATS)" \
       org.opencontainers.image.licenses="MIT"
 ENV NODE_ENV=production \

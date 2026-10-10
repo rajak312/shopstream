@@ -47,7 +47,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               ShopStream is a portfolio project by{' '}
               <a
                 className="font-medium text-zinc-700 hover:underline dark:text-zinc-200"
-                href="https://github.com/rajak312"
+                href="https://github.com/lalitkumarrajak"
               >
                 Lalit Rajak
               </a>

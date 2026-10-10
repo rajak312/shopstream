@@ -7,7 +7,7 @@ live order timeline and a real-time **event-flow visualizer**.
 
 **[Live demo](https://shopstream-lalit.vercel.app)** · demo login `demo@shopstream.dev` / `demo-password`
 (or one click on "Continue as the demo shopper") · Kubernetes/GitOps deployment:
-[rajak312/shopstream-gitops](https://github.com/rajak312/shopstream-gitops)
+[lalitkumarrajak/shopstream-gitops](https://github.com/lalitkumarrajak/shopstream-gitops)
 
 > The demo API runs on a free tier that sleeps when idle; the UI shows a "waking up the services…" banner
 > for the ~30–60 s cold start.
@@ -302,7 +302,7 @@ non-root read-only containers.
 | Observability | OpenTelemetry (HTTP, Express, GraphQL, MongoDB, pg + manual NATS producer/consumer spans), Jaeger, pino JSON logs with `trace_id`, Prometheus metrics (`/metrics`, RED + consumer outcomes) |
 | Web           | Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS v4, TanStack Query, lucide icons                                                                                                 |
 | Quality       | Vitest (unit + Testcontainers e2e), ESLint 9 flat config, Prettier, GitHub Actions                                                                                                          |
-| Delivery      | Docker multi-stage images → GHCR (multi-arch), Helm + Argo CD ([gitops repo](https://github.com/rajak312/shopstream-gitops)), Render + Vercel demo                                          |
+| Delivery      | Docker multi-stage images → GHCR (multi-arch), Helm + Argo CD ([gitops repo](https://github.com/lalitkumarrajak/shopstream-gitops)), Render + Vercel demo                                          |
 
 ## Getting started
 
@@ -386,10 +386,10 @@ Docker builds. `release.yml` pushes multi-arch (amd64/arm64) images to GHCR.
 
 On every push to `main`, `release.yml` builds and pushes
 
-`ghcr.io/rajak312/shopstream-{gateway,catalog,orders,payments,notifications,web,allinone}`
+`ghcr.io/lalitkumarrajak/shopstream-{gateway,catalog,orders,payments,notifications,web,allinone}`
 
 tagged with the full git SHA and `latest`. If the repository secret **`GITOPS_TOKEN`** (a fine-grained PAT
-with `contents: write` on `rajak312/shopstream-gitops`) exists, a follow-up job bumps
+with `contents: write` on `lalitkumarrajak/shopstream-gitops`) exists, a follow-up job bumps
 `environments/dev/values.yaml` in the GitOps repo to the new SHA and Argo CD rolls dev forward; without
 the secret the job is skipped and the workflow stays green. Production is promoted by PR in the gitops
 repo.
@@ -397,7 +397,7 @@ repo.
 ### Kubernetes
 
 Helm charts, Argo CD app-of-apps, dev/prod environments, NetworkPolicies, observability and a one-command
-kind bootstrap live in **[shopstream-gitops](https://github.com/rajak312/shopstream-gitops)**.
+kind bootstrap live in **[shopstream-gitops](https://github.com/lalitkumarrajak/shopstream-gitops)**.
 
 ### Free-tier live demo (Render + Vercel + Neon + Atlas)
 

@@ -19,7 +19,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  OWNER: rajak312
+  OWNER: lalitkumarrajak
 
 jobs:
   images:
@@ -77,7 +77,7 @@ jobs:
     needs: images
     runs-on: ubuntu-latest
     env:
-      # Optional: a fine-grained PAT with contents:write on rajak312/shopstream-gitops.
+      # Optional: a fine-grained PAT with contents:write on lalitkumarrajak/shopstream-gitops.
       # Without it this job is skipped and CI stays green.
       GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
     steps:
@@ -87,7 +87,7 @@ jobs:
       - uses: actions/checkout@v4
         if: env.GITOPS_TOKEN != ''
         with:
-          repository: rajak312/shopstream-gitops
+          repository: lalitkumarrajak/shopstream-gitops
           token: ${{ env.GITOPS_TOKEN }}
           path: gitops
       - name: Update dev image tag

@@ -47,7 +47,7 @@ RUN \
 FROM ${NODE_IMAGE} AS runtime
 ARG SERVICE
 ARG APP_VERSION=dev
-LABEL org.opencontainers.image.source="https://github.com/rajak312/shopstream" \
+LABEL org.opencontainers.image.source="https://github.com/lalitkumarrajak/shopstream" \
       org.opencontainers.image.description="ShopStream ${SERVICE} service" \
       org.opencontainers.image.licenses="MIT"
 ENV NODE_ENV=production \
